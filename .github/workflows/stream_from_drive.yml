@@ -1,0 +1,56 @@
+name: Stream Video from Drive to YouTube (5h)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  stream:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # 6 ساعات كحد أقصى
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y ffmpeg
+        python3 -m pip install --upgrade pip
+        pip install gdown
+
+    - name: Download video from Google Drive
+      env:
+        DRIVE_FILE_ID: ${{ secrets.DRIVE_FILE_ID }}
+      run: |
+        echo "Downloading file from Drive ID: $DRIVE_FILE_ID"
+        python3 -m gdown "https://drive.google.com/uc?id=${DRIVE_FILE_ID}" -O video.mp4
+        ls -lh video.mp4
+
+    - name: Get video duration (seconds)
+      id: duration
+      run: |
+        DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 video.mp4)
+        echo "Video duration: $DURATION seconds"
+        echo "::set-output name=seconds::$DURATION"
+
+    - name: Compute repeat count for 5 hours
+      id: compute
+      run: |
+        TARGET=18000  # 5 ساعات = 18000 ثانية
+        DURATION=${{ steps.duration.outputs.seconds }}
+        REPEATS=$(python3 -c "import math; print(math.ceil($TARGET / float($DURATION)))")
+        echo "Repeats needed: $REPEATS"
+        echo "::set-output name=repeats::$REPEATS"
+
+    - name: Stream to YouTube
+      env:
+        YT_STREAM_KEY: ${{ secrets.YT_STREAM_KEY }}
+        RTMP_URL: ${{ secrets.RTMP_URL || 'rtmp://a.rtmp.youtube.com/live2' }}
+      run: |
+        REPEATS=${{ steps.compute.outputs.repeats }}
+        LOOP_COUNT=$((REPEATS - 1))
+        echo "Streaming video with -stream_loop $LOOP_COUNT and max duration 18000s"
+        ffmpeg -hide_banner -loglevel info -stream_loop $LOOP_COUNT -re -i video.mp4 \
+          -c:v libx264 -preset veryfast -maxrate 3000k -bufsize 6000k \
+          -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k -ar 44100 -f flv "${RTMP_URL}/${YT_STREAM_KEY}" -t 18000
