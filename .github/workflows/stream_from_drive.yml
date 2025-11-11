@@ -57,5 +57,5 @@ jobs:
         LOOP_COUNT=$((REPEATS - 1))
         echo "Streaming video with -stream_loop $LOOP_COUNT and max duration ${TARGET}s"
         ffmpeg -hide_banner -loglevel info -stream_loop $LOOP_COUNT -re -i video.mp4 \
-          -c:v libx264 -preset veryfast -maxrate 3000k -bufsize 6000k \
+          -c:v libx264 -preset veryfast -maxrate 6500k -bufsize 13000k \
           -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k -ar 44100 -f flv "${RTMP_URL}/${YT_STREAM_KEY}" -t ${TARGET}
