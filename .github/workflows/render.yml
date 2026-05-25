@@ -42,7 +42,7 @@ jobs:
     # تشغيل الرندرة بأعلى جودة High Quality (1080p)
     - name: Render Video via Manim
       run: |
-        manim -pgh -a quiz.py Quran
+        manim --quality h -a quiz.py Quran
 
     # خطوة الرفع المباشرة والآمنة للدرايف
     - name: Configure Rclone & Upload to Google Drive
