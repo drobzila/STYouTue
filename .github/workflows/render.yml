@@ -26,7 +26,8 @@ jobs:
         sudo cp fonts/*.ttf /usr/local/share/fonts/truetype/custom/
         sudo fc-cache -fv
 
-     Sir configuration for Python
+    # تم إصلاح السطر هنا بوضع علامة # في البداية ليكون تعليقاً صحيحاً
+    # Sir configuration for Python
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
