@@ -7,7 +7,7 @@ from mutagen.mp3 import MP3
 class Quran(Scene):
     def construct(self):
         # 💡 إعدادات التحكم: رقم السورة ومعرّف القارئ
-        SURAH_NUMBER = 108  # سورة الكوثر كمثال
+        SURAH_NUMBER = 33  # سورة الكوثر كمثال
         RECITER = "ar.husary" # يمكنك تغييره إلى "ar.alafasy" أو أي قارئ آخر
         
         # إنشاء مجلد مؤقت لحفظ ملفات الصوت إذا لم يكن موجوداً
