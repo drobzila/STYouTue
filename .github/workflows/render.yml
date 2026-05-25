@@ -13,13 +13,13 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # تثبيت الحزم والاعتماديات الأساسية لنظام التشغيل وسيرفر الصوت والفيديو
+    # تثبيت الحزم والاعتماديات الأساسية
     - name: Install System Dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y ffmpeg build-essential libcairo2-dev libpango1.0-dev freeglut3-dev pkg-config rclone
 
-    # تثبيت وتفعيل الخط المرفوع في المستودع داخل نظام السيرفر
+    # تثبيت وتفعيل الخط المرفوع في المستودع
     - name: Set up Custom Fonts
       run: |
         sudo mkdir -p /usr/local/share/fonts/truetype/custom
@@ -39,12 +39,18 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    # تشغيل الرندرة وإجبار المحرك على تسمية الفيديو final_video.mp4
+    # تشغيل الرندرة، ثم البحث عن ملف الـ mp4 الناتج ونقله فوراً للمجلد الرئيسي لتسهيل الوصول إليه
     - name: Render Video via Manim
       run: |
         manim --quality h -a -o final_video.mp4 quiz.py Quran
+        
+        # أمر ذكي للبحث عن الفيديو بنسق mp4 ونقله للمجلد الحالي باسم quran_video.mp4 مهما كان عمق المجلدات
+        find media/ -name "final_video.mp4" -exec mv {} ./quran_video.mp4 \;
+        
+        # التأكد من أن الملف أصبح في المجلد الرئيسي عبر طباعة قائمة الملفات
+        ls -la
 
-    # خطوة الرفع المباشرة للفيديو المحدد من المجلد الصحيح
+    # خطوة الرفع المباشرة لملف قورآن المتموضع في المجلد الرئيسي
     - name: Configure Rclone & Upload to Google Drive
       env:
         RCLONE_CONFIG_DATA: ${{ secrets.RCLONE_CONFIG }}
@@ -55,10 +61,8 @@ jobs:
         
         REMOTE_NAME=$(grep -oP '\[\K[^\]]+' ~/.config/rclone/rclone.conf | head -n 1)
         
-        # طباعة معلومات للتأكد من نجاح الخطوة في الـ Logs
         echo "[*] Detected remote name: $REMOTE_NAME"
-        echo "[*] Destination Folder ID: $FOLDER_ID"
-        echo "[*] Uploading video to Google Drive..."
+        echo "[*] Uploading video file directly to Google Drive..."
         
-        # رفع الملف بالمسار الصحيح والمثبت لـ Manim مع الاسم المخصص
-        rclone copy media/videos/quiz/1080p30/final_video.mp4 ${REMOTE_NAME}:${FOLDER_ID} --progress
+        # استخدام copyto لرفع ملف فردي محدد ومباشر دون الحاجة لقراءة المجلدات الجانبية
+        rclone copyto ./quran_video.mp4 ${REMOTE_NAME}:${FOLDER_ID}/quran_video.mp4 --progress
