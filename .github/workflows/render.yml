@@ -47,7 +47,7 @@ jobs:
     - name: Configure Rclone & Upload to Google Drive
       env:
         RCLONE_CONFIG_DATA: ${{ secrets.RCLONE_CONFIG }}
-        FOLDER_ID: "ضع_هنا_معرف_مجلدك" 
+        FOLDER_ID: "1Tbkse12zzosT83VwrkwRa4pn5t0yhUdw" 
       run: |
         mkdir -p ~/.config/rclone
         echo "$RCLONE_CONFIG_DATA" > ~/.config/rclone/rclone.conf
