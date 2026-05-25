@@ -39,26 +39,26 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    # تشغيل الرندرة بأعلى جودة High Quality (1080p) متوافقة مع سيرفرات لينكس
+    # تشغيل الرندرة وإجبار المحرك على تسمية الفيديو final_video.mp4
     - name: Render Video via Manim
       run: |
-        manim --quality h -a quiz.py Quran
+        manim --quality h -a -o final_video.mp4 quiz.py Quran
 
-    # خطوة الرفع الذكية والمضمونة 100% بعد معالجة اسم الريموت
+    # خطوة الرفع المباشرة للفيديو المحدد من المجلد الصحيح
     - name: Configure Rclone & Upload to Google Drive
       env:
         RCLONE_CONFIG_DATA: ${{ secrets.RCLONE_CONFIG }}
         FOLDER_ID: "1Tbkse12zzosT83VwrkwRa4pn5t0yhUdw" 
       run: |
         mkdir -p ~/.config/rclone
-        # طباعة الإعدادات السرية المشفرة داخل ملف النظام في السيرفر
         echo "$RCLONE_CONFIG_DATA" > ~/.config/rclone/rclone.conf
         
-        # استخراج اسم الريموت ديناميكياً (سيلتقط كلمة drive تلقائياً وبأمان)
         REMOTE_NAME=$(grep -oP '\[\K[^\]]+' ~/.config/rclone/rclone.conf | head -n 1)
         
+        # طباعة معلومات للتأكد من نجاح الخطوة في الـ Logs
         echo "[*] Detected remote name: $REMOTE_NAME"
+        echo "[*] Destination Folder ID: $FOLDER_ID"
         echo "[*] Uploading video to Google Drive..."
         
-        # أمر الرفع النهائي المباشر للفيديو عالي الجودة
-        rclone copy media/videos/quiz/1080p30/Quran.mp4 ${REMOTE_NAME}:${FOLDER_ID} --progress
+        # رفع الملف بالمسار الصحيح والمثبت لـ Manim مع الاسم المخصص
+        rclone copy media/videos/quiz/1080p30/final_video.mp4 ${REMOTE_NAME}:${FOLDER_ID} --progress
