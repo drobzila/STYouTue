@@ -13,56 +13,63 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # تثبيت الحزم والاعتماديات الأساسية
+    # 1️⃣ تثبيت الحزم والاعتماديات الأساسية لنظام التشغيل وسيرفر الصوت والفيديو والأتمتة
     - name: Install System Dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y ffmpeg build-essential libcairo2-dev libpango1.0-dev freeglut3-dev pkg-config rclone
 
-    # تثبيت وتفعيل الخط المرفوع في المستودع
+    # 2️⃣ تثبيت وتفعيل الخط المرفوع في مستودعك داخل نظام السيرفر لضمان ظهور النصوص العربية بشكل صحيح
     - name: Set up Custom Fonts
       run: |
         sudo mkdir -p /usr/local/share/fonts/truetype/custom
-        sudo cp fonts/*.ttf /usr/local/share/fonts/truetype/custom/
+        sudo cp fonts/*.ttf /usr/local/share/fonts/truetype/custom/ || true
         sudo fc-cache -fv
 
-    # إعداد بيئة بايثون
+    # 3️⃣ إعداد بيئة بايثون الاصدار المستقر لـ Manim
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
         cache: 'pip'
 
-    # تثبيت مكتبات بايثون المذكورة في requirements.txt
+    # 4️⃣ تثبيت مكتبات بايثون المذكورة في ملف requirements.txt
     - name: Install Python Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    # تشغيل الرندرة، ثم البحث عن ملف الـ mp4 الناتج ونقله فوراً للمجلد الرئيسي لتسهيل الوصول إليه
+    # 5️⃣ تشغيل الرندرة بأعلى جودة High Quality (1080p) وطباعة هيكلة الملفات الناتجة
     - name: Render Video via Manim
       run: |
-        manim --quality h -a -o final_video.mp4 quiz.py Quran
-        
-        # أمر ذكي للبحث عن الفيديو بنسق mp4 ونقله للمجلد الحالي باسم quran_video.mp4 مهما كان عمق المجلدات
-        find media/ -name "final_video.mp4" -exec mv {} ./quran_video.mp4 \;
-        
-        # التأكد من أن الملف أصبح في المجلد الرئيسي عبر طباعة قائمة الملفات
-        ls -la
+        manim --quality h -a quiz.py Quran
+        echo "=== طباعة المجلدات الناتجة للتأكد من مكان الفيديو ==="
+        ls -R media/ || echo "مجلد media غير موجود!"
 
-    # خطوة الرفع المباشرة لملف قورآن المتموضع في المجلد الرئيسي
+    # 6️⃣ خطوة احتياطية: حفظ الفيديو داخل GitHub Actions لتتمكن من تحميله يدوياً بضغطة زر لو احتجت
+    - name: Upload Video as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: quran-video-output
+        path: media/videos/
+        if-no-files-found: warn
+
+    # 7️⃣ خطوة الرفع الذكية والمضمونة إلى حسابك في Google Drive
     - name: Configure Rclone & Upload to Google Drive
       env:
         RCLONE_CONFIG_DATA: ${{ secrets.RCLONE_CONFIG }}
         FOLDER_ID: "1Tbkse12zzosT83VwrkwRa4pn5t0yhUdw" 
       run: |
         mkdir -p ~/.config/rclone
+        # كتابة النص المشفر الخاص بـ Rclone داخل السيرفر
         echo "$RCLONE_CONFIG_DATA" > ~/.config/rclone/rclone.conf
         
+        # استخراج اسم الريموت ديناميكياً لتجنب خطأ التسمية (drive أو gdrive)
         REMOTE_NAME=$(grep -oP '\[\K[^\]]+' ~/.config/rclone/rclone.conf | head -n 1)
         
         echo "[*] Detected remote name: $REMOTE_NAME"
-        echo "[*] Uploading video file directly to Google Drive..."
+        echo "[*] Destination Folder ID: $FOLDER_ID"
+        echo "[*] Uploading everything inside videos folder to Google Drive..."
         
-        # استخدام copyto لرفع ملف فردي محدد ومباشر دون الحاجة لقراءة المجلدات الجانبية
-        rclone copyto ./quran_video.mp4 ${REMOTE_NAME}:${FOLDER_ID}/quran_video.mp4 --progress
+        # رفع مجلد الفيديوهات بالكامل لضمان العثور على الفيديو مهما كان مساره
+        rclone copy media/videos/ ${REMOTE_NAME}:${FOLDER_ID} --progress
