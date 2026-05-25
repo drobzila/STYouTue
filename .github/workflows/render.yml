@@ -1,0 +1,43 @@
+name: Render Quran Video & Upload to Drive
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  render_and_upload:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Install System Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg build-essential libcairo2-dev libpango1.0-dev freeglut3-dev pkg-config fonts-amiri fonts-sil-charis
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install Python Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Render Video via Manim
+      run: |
+        manim -pql -a quiz.py Quran
+
+    # 💡 الخطوة الجديدة: رفع الفيديو إلى Google Drive تلقائياً
+    - name: Upload Video to Google Drive
+      uses: adityassarkar/google-drive-upload-gitaction@v1
+      with:
+        credentials: ${{ secrets.DRIVE_CREDENTIALS }} # المفتاح الآمن الذي سنضيفه في GitHub
+        filename: 'media/videos/quiz/480p15/Quran.mp4' # مسار الفيديو الذي أنتجه السكربت
+        folderId: '1Tbkse12zzosT83VwrkwRa4pn5t0yhUdw' # استبدل هذا النص بمعرّف المجلد الخاص بك
+        overwrite: true
