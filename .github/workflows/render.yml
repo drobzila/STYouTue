@@ -13,11 +13,20 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
+    # تم إزالة fonts-amiri واستبدالها بإعداد الخطوط المحلي
     - name: Install System Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y ffmpeg build-essential libcairo2-dev libpango1.0-dev freeglut3-dev pkg-config fonts-amiri fonts-sil-charis rclone
+        sudo apt-get install -y ffmpeg build-essential libcairo2-dev libpango1.0-dev freeglut3-dev pkg-config rclone
 
+    # تثبيت وتفعيل الخط المرفوع في المستودع داخل نظام السيرفر
+    - name: Set up Custom Fonts
+      run: |
+        sudo mkdir -p /usr/local/share/fonts/truetype/custom
+        sudo cp fonts/*.ttf /usr/local/share/fonts/truetype/custom/
+        sudo fc-cache -fv
+
+     Sir configuration for Python
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -29,19 +38,17 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    # تشغيل الرندرة بأعلى جودة High Quality (1080p)
     - name: Render Video via Manim
       run: |
         manim -pgh -a quiz.py Quran
 
-    # 💡 خطوة الرفع المحدثة والمستقرة باستخدام Rclone
+    # خطوة الرفع المباشرة والآمنة للدرايف
     - name: Configure Rclone & Upload to Google Drive
       env:
         RCLONE_CONFIG_DATA: ${{ secrets.RCLONE_CONFIG }}
-        FOLDER_ID: "1Tbkse12zzosT83VwrkwRa4pn5t0yhUdw"  # استبدل هذا المعرف بمعرف مجلدك في الدرايف
+        FOLDER_ID: "ضع_هنا_معرف_مجلدك" 
       run: |
-        # إعداد ملف التهيئة لـ rclone بشكل ديناميكي وآمن
         mkdir -p ~/.config/rclone
         echo "$RCLONE_CONFIG_DATA" > ~/.config/rclone/rclone.conf
-        
-        # نلاحظ هنا تغير المسار إلى 1080p30 تلقائياً بسبب جودة الجرافيكس المرتفعة
         rclone copy media/videos/quiz/1080p30/Quran.mp4 gdrive:$FOLDER_ID --progress
