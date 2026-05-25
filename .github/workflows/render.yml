@@ -16,7 +16,7 @@ jobs:
     - name: Install System Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y ffmpeg build-essential libcairo2-dev libpango1.0-dev freeglut3-dev pkg-config fonts-amiri fonts-sil-charis
+        sudo apt-get install -y ffmpeg build-essential libcairo2-dev libpango1.0-dev freeglut3-dev pkg-config fonts-amiri fonts-sil-charis rclone
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -33,11 +33,15 @@ jobs:
       run: |
         manim -pql -a quiz.py Quran
 
-    # 💡 الخطوة الجديدة: رفع الفيديو إلى Google Drive تلقائياً
-    - name: Upload Video to Google Drive
-      uses: adityassarkar/google-drive-upload-gitaction@v1
-      with:
-        credentials: ${{ secrets.DRIVE_CREDENTIALS }} # المفتاح الآمن الذي سنضيفه في GitHub
-        filename: 'media/videos/quiz/480p15/Quran.mp4' # مسار الفيديو الذي أنتجه السكربت
-        folderId: '1Tbkse12zzosT83VwrkwRa4pn5t0yhUdw' # استبدل هذا النص بمعرّف المجلد الخاص بك
-        overwrite: true
+    # 💡 خطوة الرفع المحدثة والمستقرة باستخدام Rclone
+    - name: Configure Rclone & Upload to Google Drive
+      env:
+        RCLONE_CONFIG_DATA: ${{ secrets.RCLONE_CONFIG }}
+        FOLDER_ID: "1Tbkse12zzosT83VwrkwRa4pn5t0yhUdw"  # استبدل هذا المعرف بمعرف مجلدك في الدرايف
+      run: |
+        # إعداد ملف التهيئة لـ rclone بشكل ديناميكي وآمن
+        mkdir -p ~/.config/rclone
+        echo "$RCLONE_CONFIG_DATA" > ~/.config/rclone/rclone.conf
+        
+        # أمر الرفع المباشر للفيديو إلى المجلد المحدد داخل الجوجل درايف
+        rclone copy media/videos/quiz/480p15/Quran.mp4 gdrive:$FOLDER_ID --progress
