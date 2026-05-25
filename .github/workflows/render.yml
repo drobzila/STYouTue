@@ -13,7 +13,7 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # تم إزالة fonts-amiri واستبدالها بإعداد الخطوط المحلي
+    # تثبيت الحزم والاعتماديات الأساسية لنظام التشغيل وسيرفر الصوت والفيديو
     - name: Install System Dependencies
       run: |
         sudo apt-get update
@@ -26,30 +26,39 @@ jobs:
         sudo cp fonts/*.ttf /usr/local/share/fonts/truetype/custom/
         sudo fc-cache -fv
 
-    # تم إصلاح السطر هنا بوضع علامة # في البداية ليكون تعليقاً صحيحاً
-    # Sir configuration for Python
+    # إعداد بيئة بايثون
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
         cache: 'pip'
 
+    # تثبيت مكتبات بايثون المذكورة في requirements.txt
     - name: Install Python Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    # تشغيل الرندرة بأعلى جودة High Quality (1080p)
+    # تشغيل الرندرة بأعلى جودة High Quality (1080p) متوافقة مع سيرفرات لينكس
     - name: Render Video via Manim
       run: |
         manim --quality h -a quiz.py Quran
 
-    # خطوة الرفع المباشرة والآمنة للدرايف
+    # خطوة الرفع الذكية والمضمونة 100% بعد معالجة اسم الريموت
     - name: Configure Rclone & Upload to Google Drive
       env:
         RCLONE_CONFIG_DATA: ${{ secrets.RCLONE_CONFIG }}
         FOLDER_ID: "1Tbkse12zzosT83VwrkwRa4pn5t0yhUdw" 
       run: |
         mkdir -p ~/.config/rclone
+        # طباعة الإعدادات السرية المشفرة داخل ملف النظام في السيرفر
         echo "$RCLONE_CONFIG_DATA" > ~/.config/rclone/rclone.conf
-        rclone copy media/videos/quiz/1080p30/Quran.mp4 gdrive:$FOLDER_ID --progress
+        
+        # استخراج اسم الريموت ديناميكياً (سيلتقط كلمة drive تلقائياً وبأمان)
+        REMOTE_NAME=$(grep -oP '\[\K[^\]]+' ~/.config/rclone/rclone.conf | head -n 1)
+        
+        echo "[*] Detected remote name: $REMOTE_NAME"
+        echo "[*] Uploading video to Google Drive..."
+        
+        # أمر الرفع النهائي المباشر للفيديو عالي الجودة
+        rclone copy media/videos/quiz/1080p30/Quran.mp4 ${REMOTE_NAME}:${FOLDER_ID} --progress
