@@ -7,14 +7,14 @@ from mutagen.mp3 import MP3
 class Quran(Scene):
     def construct(self):
         # 💡 إعدادات التحكم: رقم السورة ومعرّف القارئ
-        SURAH_NUMBER = 33  # سورة الكوثر كمثال
+        SURAH_NUMBER = 108  # سورة الكوثر كمثال (تم التعديل لـ 108 لأن 33 هي سورة الأحزاب)
         RECITER = "ar.husary" # يمكنك تغييره إلى "ar.alafasy" أو أي قارئ آخر
         
         # إنشاء مجلد مؤقت لحفظ ملفات الصوت إذا لم يكن موجوداً
         if not os.path.exists("audio_temp"):
             os.makedirs("audio_temp")
 
-        # 1. جلب بيانات السورة والصوت من الـ API (الطباعة الآن في الـ Terminal فقط لمنع التداخل)
+        # 1. جلب بيانات السورة والصوت من الـ API
         print("\n" + "="*50)
         print(f"[*] جاري الاتصال بالـ API وسحب بيانات السورة رقم {SURAH_NUMBER}...")
         print("="*50 + "\n")
@@ -28,12 +28,11 @@ class Quran(Scene):
         surah_name = surah_data["name"]
         ayahs_list = surah_data["ayahs"]
 
-        # 2. بناء المشهد مباشرة (الخلفية المضيئة المتدرجة والفقاعات الكثيفة)
+        # 2. بناء المشهد (الخلفية المضيئة والفقاعات المتحركة)
         bg = Rectangle(width=config.frame_width, height=config.frame_height, stroke_width=0)
         bg.set_color_by_gradient("#f2fff7", "#ffffff")
         self.add(bg)
 
-        # إضافة 65 فقاعة متحركة في الخلفية
         bubbles = VGroup()
         for _ in range(65):  
             radius = random.uniform(0.2, 0.55)
@@ -60,7 +59,7 @@ class Quran(Scene):
                 if abs(b.get_y()) > limit_y: b.vy *= -1
         bubbles.add_updater(update_bubbles)
 
-        # 3. بناء صندوق العرض الزجاجي في بداية الفيديو بشكل ناعم
+        # 3. بناء صندوق العرض الزجاجي
         box = RoundedRectangle(
             corner_radius=0.4, width=10.5, height=3.5,
             fill_color="#ffffff", fill_opacity=0.7,  
@@ -74,42 +73,73 @@ class Quran(Scene):
             ayah_num = ayah["numberInSurah"]
             audio_url = ayah["audio"]
 
-            # تحميل ملف الصوت للآية الحالية بصمت خلف الكواليس
+            # تحميل ملف الصوت للآية الحالية
             audio_path = f"audio_temp/ayah_{ayah_num}.mp3"
             self.download_audio(audio_url, audio_path)
             
-            # حساب مدة الصوت الحقيقية بالثواني
+            # حساب مدة الصوت الحقيقية
             audio_duration = MP3(audio_path).info.length
 
-            # معالجة تصفية البسملة التلقائية في بداية السور
-            if index == 0 and SURAH_NUMBER not in [1, 9] and text_str.startswith("بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"):
-                text_str = text_str.replace("بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ", "").strip()
-                if text_str == "":
-                    text_str = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"
+            # --- التعديل الجوهري للتعامل مع البسملة المدمجة في الآية الأولى ---
+            if index == 0 and SURAH_NUMBER not in [1, 9] and text_str.startswith("بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ"):
+                # نقتطع نص الآية بدون البسملة للمرحلة الثانية
+                clean_ayah_text = text_str.replace("بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ", "").strip()
+                
+                # تشغيل ملف الصوت (الذي يبدأ بالبسملة طبيعياً بصوت الشيخ المختار)
+                self.add_sound(audio_path)
+                
+                # أولاً: عرض نص البسملة فقط
+                bismillah_text = MarkupText('<span foreground="#1b5e20">« بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ »</span>', font="Amiri", font_size=34, weight=BOLD)
+                info_text = MarkupText(f'<span foreground="#555555">📖 سورة {surah_name}</span>', font="Arial", font_size=16)
+                
+                bismillah_text.move_to(box.get_center() + UP * 0.25)
+                info_text.next_to(bismillah_text, DOWN, buff=0.4)
+                
+                self.play(FadeIn(bismillah_text, shift=UP * 0.1), FadeIn(info_text, shift=UP * 0.1), run_time=0.8)
+                
+                # وقت انتظار مخصص لنطق البسملة (حوالي 2.3 ثانية لغالبية القراء كالـحُصري)
+                self.wait(2.3)
+                
+                # الانتقال من نص البسملة إلى نص الآية الأولى
+                self.play(FadeOut(bismillah_text), FadeOut(info_text), run_time=0.4)
+                
+                # ثانياً: تجهيز نص الآية الأولى الفعلي وعرضه
+                quran_text = MarkupText(f'<span foreground="#1b5e20">« {clean_ayah_text} »</span>', font="Amiri", font_size=34, weight=BOLD)
+                info_text = MarkupText(f'<span foreground="#555555">📖 سورة {surah_name} - آية {ayah_num}</span>', font="Arial", font_size=16)
+                
+                if quran_text.width > box.width - 1.0:
+                    quran_text.scale((box.width - 1.2) / quran_text.width)
+                
+                quran_text.move_to(box.get_center() + UP * 0.25)
+                info_text.next_to(quran_text, DOWN, buff=0.4)
+                
+                self.play(FadeIn(quran_text, shift=UP * 0.1), FadeIn(info_text, shift=UP * 0.1), run_time=0.6)
+                
+                # نخصم وقت البسملة المستهلك من إجمالي مدة ملف الصوت
+                display_wait = max(0.5, audio_duration - 3.7)
+                self.wait(display_wait)
+                
+            else:
+                # المعالجة الطبيعية لباقي الآيات (أو للفاتحة والتوبة)
+                quran_text = MarkupText(f'<span foreground="#1b5e20">« {text_str} »</span>', font="Amiri", font_size=34, weight=BOLD)
+                info_text = MarkupText(f'<span foreground="#555555">📖 سورة {surah_name} - آية {ayah_num}</span>', font="Arial", font_size=16)
 
-            # تجهيز نصوص الـ Markup العربية المتصلة والصحيحة 100%
-            quran_text = MarkupText(f'<span foreground="#1b5e20">« {text_str} »</span>', font="Amiri", font_size=34, weight=BOLD)
-            info_text = MarkupText(f'<span foreground="#555555">📖 سورة {surah_name} - آية {ayah_num}</span>', font="Arial", font_size=16)
+                if quran_text.width > box.width - 1.0:
+                    quran_text.scale((box.width - 1.2) / quran_text.width)
 
-            # احتواء النصوص الطويلة تلقائياً داخل حدود الصندوق
-            if quran_text.width > box.width - 1.0:
-                quran_text.scale((box.width - 1.2) / quran_text.width)
+                quran_text.move_to(box.get_center() + UP * 0.25)
+                info_text.next_to(quran_text, DOWN, buff=0.4)
 
-            quran_text.move_to(box.get_center() + UP * 0.25)
-            info_text.next_to(quran_text, DOWN, buff=0.4)
-
-            # دمج الصوت الرسمي ومزامنة حركة الظهور والاختفاء
-            self.add_sound(audio_path)
-            
-            self.play(
-                FadeIn(quran_text, shift=UP * 0.1),
-                FadeIn(info_text, shift=UP * 0.1),
-                run_time=1.0
-            )
-            
-            # حساب وقت ثبات النص بدقة متناهية مع انتهاء صوت القارئ
-            display_wait = max(0.5, audio_duration - 1.5)
-            self.wait(display_wait)
+                self.add_sound(audio_path)
+                
+                self.play(
+                    FadeIn(quran_text, shift=UP * 0.1),
+                    FadeIn(info_text, shift=UP * 0.1),
+                    run_time=1.0
+                )
+                
+                display_wait = max(0.5, audio_duration - 1.5)
+                self.wait(display_wait)
 
             # الانتقال السلس للآية التالية
             if index < len(ayahs_list) - 1:
@@ -118,7 +148,6 @@ class Quran(Scene):
         self.wait(2)
 
     def fetch_surah_data(self, surah_number, reciter):
-        """ جلب بيانات السورة شاملة النصوص العثمانية وروابط الصوت لقارئ محدد """
         url = f"https://api.alquran.cloud/v1/surah/{surah_number}/{reciter}"
         try:
             response = requests.get(url, timeout=15)
@@ -129,7 +158,6 @@ class Quran(Scene):
         return None
 
     def download_audio(self, url, save_path):
-        """ تحميل ملف الـ MP3 من السيرفر وتخزينه محلياً قبل الرندرة """
         if not os.path.exists(save_path):
             r = requests.get(url, stream=True)
             with open(save_path, 'wb') as f:
